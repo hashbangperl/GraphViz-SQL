@@ -4,4 +4,5 @@ MANIFEST
 README
 graphviz-sql
 t/GraphViz-SQL.t
+t/simple_sql.t
 lib/GraphViz/SQL.pm
