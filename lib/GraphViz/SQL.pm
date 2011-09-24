@@ -64,7 +64,7 @@ sub parse {
 	push(@{$self->{parsed_structure}{relations}}, {
 						       from => $join->{table_order}[0],
 						       to => $join->{table_order}[1],
-						       label => join(' ', $join->{type}, 'join',  $join->{clause}, $join->{keycols}[0], '=', $join->{keycols}[0])
+						       label => join(' ', $join->{type}, 'join',  $join->{clause}, $join->{keycols}[0], '=', $join->{keycols}[1])
 						      });
     }
 
