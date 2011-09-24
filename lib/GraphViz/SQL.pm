@@ -54,7 +54,8 @@ sub parse {
     }
 
     foreach my $column (@{$raw_data->{column_defs}}) {
-	my ($schema, $table, $column_name) = reverse split (/\./, $column->{value});
+	my ($column_name, $table, $schema) = reverse split (/\./, $column->{value});
+
 	$column->{name} = $column_name;
 	push (@{$self->{parsed_structure}{tables}{$table}{columns}}, $column);
     }
@@ -90,7 +91,7 @@ sub visualise {
     my $g = GraphViz->new();
 
     foreach my $table (values %{$self->tables}) {
-        my $node = '{'.$table->{name}." aliases (" . join (',', $table->{aliases}) . " ) |";
+        my $node = '{'.$table->{name}." aliases (" . join (',', @{$table->{aliases}}) . " ) |";
 	foreach my $table_column ( @{$table->{columns}} ) {
             $node .= $table_column->{name}.'\l';
 	}
