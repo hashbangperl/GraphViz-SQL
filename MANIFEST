@@ -2,5 +2,6 @@ Changes
 Makefile.PL
 MANIFEST
 README
+graphviz-sql
 t/GraphViz-SQL.t
 lib/GraphViz/SQL.pm

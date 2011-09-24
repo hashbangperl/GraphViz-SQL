@@ -8,6 +8,7 @@ WriteMakefile(
 			GraphViz => 0,
 			SQL::Statement => 1.10,
     }, # e.g., Module::Name => 1.1
+    'EXE_FILES' => [ 'graphviz-sql' ],
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
        (AUTHOR         => 'Aaron Trevena <teejay@(none)>') : ()),
 );
