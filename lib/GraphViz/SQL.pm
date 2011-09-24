@@ -95,9 +95,11 @@ sub visualise {
     my $g = GraphViz->new();
 
     foreach my $table (values %{$self->tables}) {
-        my $node = '{'.$table->{name}." aliases (" . join (',', @{$table->{aliases}}) . " ) |";
+        my $node = '{'.$table->{name}." ( aliases : " . join (',', @{$table->{aliases}}) . " ) |";
 	foreach my $table_column ( @{$table->{columns}} ) {
-            $node .= $table_column->{name}.'\l';
+            $node .= $table_column->{name};
+	    $node .= ' ( alias '. $table_column->{alias} .')' if ($table_column->{alias});
+	      $node .='\l';
 	}
 	$node .= '}';
 	$nodes{$table->{name}} = $node;
