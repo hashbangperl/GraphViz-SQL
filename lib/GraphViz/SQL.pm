@@ -61,6 +61,10 @@ sub parse {
     }
 
     foreach my $join ($raw_data->{join}) {
+	foreach my $join_col (@{$join->{keycols}}) {
+	    my ($column_name, $table, $schema) = reverse split (/\./, $join_col);
+	    push (@{$self->{parsed_structure}{tables}{$table}{columns}}, {name => $column_name} );
+	}
 	push(@{$self->{parsed_structure}{relations}}, {
 						       from => $join->{table_order}[0],
 						       to => $join->{table_order}[1],
