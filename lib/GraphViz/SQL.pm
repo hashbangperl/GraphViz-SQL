@@ -62,13 +62,24 @@ sub parse {
     foreach my $join ($raw_data->{join}) {
 	push(@{$self->{parsed_structure}{relations}}, {
 						       from => $join->{table_order}[0],
-						       to => $join->{table_order}[0],
-						       label => join(' ', $join->{type},  $join->{clause}, $join->{keycols}[0], '=', $join->{keycols}[0])
+						       to => $join->{table_order}[1],
+						       label => join(' ', $join->{type}, 'join',  $join->{clause}, $join->{keycols}[0], '=', $join->{keycols}[0])
 						      });
     }
 
     return $self->{parsed_structure};
 }
+
+my %dot_filetypes = (
+                     gif => 'as_gif',
+                     png => 'as_png',
+                     jpg => 'as_jpeg',
+                     jpeg => 'as_jpeg',
+                     dot => 'as_canon',
+                     svg => 'as_svg',
+                     fig => 'as_fig',
+                    );
+
 
 sub visualise {
     my $self = shift;
@@ -78,7 +89,7 @@ sub visualise {
 
     my $g = GraphViz->new();
 
-    foreach my $table (values %{$self->{parsed_structure}{tables}}) {
+    foreach my $table (values %{$self->tables}) {
         my $node = '{'.$table->{name}." aliases (" . join (',', $table->{aliases}) . " ) |";
 	foreach my $table_column ( @{$table->{columns}} ) {
             $node .= $table_column->{name}.'\l';
@@ -88,106 +99,67 @@ sub visualise {
         $g->add_node($node,shape=>'record');
     }
 
-    foreach my $join (@joins) {
-	$g->add_edge($nodes{$left_table} => $nodes{$right_table} );
+    foreach my $join (@{$self->joins}) {
+	$g->add_edge($nodes{$join->{from}} => $nodes{$join->{to}}, label => $join->{label} );
     }
+    my ($extension) = reverse split(/\./, $filename);
 
-    open (FILE,">$output_filename") or die "couldn't open $output_filename file for output : $!\n";
+    open (FILE,">$filename") or die "couldn't open $filename file for output : $!\n";
     binmode FILE;
     eval 'print FILE $g->'. $dot_filetypes{$extension};
-
     close FILE;
 
     return;
 }
- 
 
-my $example_structure = {
-    'table_alias' => {
-	'table_a' => [
-	    'a'
-	    ],
-	    'table_b' => [
-		'b'
-	    ]
-    },
-	    'ALIASES' => {
-		'f1' => 'a.foo',
-		'b1' => 'b.bar'
-                       },
-          'original_string' => 'select a.foo as f1, b.bar as b1
-from table_a a left join table_b b on a.id = b.a_id
-where a.quuz = 2',
-          'org_table_names' => [
-                                 'table_a',
-                                 'table_b'
-                               ],
-          'where_cols' => {
-                            'a.quuz' => [
-                                          '2'
-                                        ]
-                          },
-          'ORG_NAME' => {
-                          'b.bar' => 'b1',
-                          'a.foo' => 'f1'
-                        },
-          'column_aliases' => {
-                                'b.bar' => 'b1',
-                                'a.foo' => 'f1'
-                              },
-          'where_clause' => {
-                              'arg2' => {
-                                          'value' => '2',
-                                          'type' => 'number',
-                                          'fullorg' => '2'
-                                        },
-                              'arg1' => {
-                                          'value' => 'table_a.quuz',
-                                          'type' => 'column',
-                                          'fullorg' => 'a.quuz'
-                                        },
-                              'nots' => {},
-                              'neg' => 0,
-                              'op' => '='
-                            },
-          'list_ids' => [],
-          'join' => {
-                      'keycols' => [
-                                     'table_a.id',
-                                     'table_b.a_id'
-                                   ],
-                      'clause' => 'ON',
-                      'table_order' => [
-                                         'table_a',
-                                         'table_b'
-                                       ],
-                      'type' => 'LEFT OUTER'
-                    },
-          'org_col_names' => [
-                               'f1',
-                               'b1'
-                             ],
-          'dialect' => 'ANSI',
-          'table_names' => [
-                             'table_a',
-                             'table_b'
-                           ],
-          'column_defs' => [
-                             {
-                               'value' => 'table_a.foo',
-                               'type' => 'column',
-                               'alias' => 'f1',
-                               'fullorg' => 'a.foo'
-                             },
-                             {
-                               'value' => 'table_b.bar',
-                               'type' => 'column',
-                               'alias' => 'b1',
-                               'fullorg' => 'b.bar'
-                             }
-                           ],
-          'command' => 'SELECT'
-        };
+sub tables {
+    return shift->{parsed_structure}{tables};
+}
+
+sub joins {
+    return shift->{parsed_structure}{relations};
+}
+
+
+
+#           'where_cols' => {
+#                             'a.quuz' => [
+#                                           '2'
+#                                         ]
+
+#           'where_clause' => {
+#                               'arg2' => {
+#                                           'value' => '2',
+#                                           'type' => 'number',
+#                                           'fullorg' => '2'
+#                                         },
+#                               'arg1' => {
+#                                           'value' => 'table_a.quuz',
+#                                           'type' => 'column',
+#                                           'fullorg' => 'a.quuz'
+#                                         },
+#                               'nots' => {},
+#                               'neg' => 0,
+#                               'op' => '='
+#                             },
+#           'list_ids' => [],
+
+
+
+#           'column_defs' => [
+#                              {
+#                                'value' => 'table_a.foo',
+#                                'type' => 'column',
+#                                'alias' => 'f1',
+#                                'fullorg' => 'a.foo'
+#                              },
+#                              {
+#                                'value' => 'table_b.bar',
+#                                'type' => 'column',
+#                                'alias' => 'b1',
+#                                'fullorg' => 'b.bar'
+#                              }
+#                            ],
 
 
 
