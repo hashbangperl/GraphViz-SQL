@@ -40,7 +40,33 @@ sub parse {
     my ($self, $sql) = @_;
     my $success = $self->{parser}->parse($sql);
     return 0 unless $success;
-    $self->{parsed_structure} = $self->{parser}->structure;
+    my $raw_data = $self->{parser}->structure;
+    $self->{parsed_structure} = { tables => {}, table_aliases => { }, relations => [] };
+    foreach my $table_name (@{$raw_data->{org_table_names}}) {
+	my $table = { name => $table_name, columns => [ ], aliases => [] };
+	if ($raw_data->{table_alias}{$table_name}) {
+	    foreach my $alias (@{$raw_data->{table_alias}{$table_name}}) {
+		push(@{$table->{aliases}}, $alias);
+		$self->{parsed_structure}{table_aliases}{$alias} = $table_name;
+	    }
+	}
+	$self->{parsed_structure}{tables}{$table_name} =  $table;
+    }
+
+    foreach my $column (@{$raw_data->{column_defs}}) {
+	my ($schema, $table, $column_name) = reverse split (/\./, $column->{value});
+	$column->{name} = $column_name;
+	push (@{$self->{parsed_structure}{tables}{$table}{columns}}, $column);
+    }
+
+    foreach my $join ($raw_data->{join}) {
+	push(@{$self->{parsed_structure}{relations}}, {
+						       from => $join->{table_order}[0],
+						       to => $join->{table_order}[0],
+						       label => join(' ', $join->{type},  $join->{clause}, $join->{keycols}[0], '=', $join->{keycols}[0])
+						      });
+    }
+
     return $self->{parsed_structure};
 }
 
@@ -52,14 +78,13 @@ sub visualise {
 
     my $g = GraphViz->new();
 
-    foreach my $table (@$tables) {
-	
-        my $node = '{'.$table."|";
-	foreach my $table_column ( grep {$_->{table} eq $table } @$columns ) {
+    foreach my $table (values %{$self->{parsed_structure}{tables}}) {
+        my $node = '{'.$table->{name}." aliases (" . join (',', $table->{aliases}) . " ) |";
+	foreach my $table_column ( @{$table->{columns}} ) {
             $node .= $table_column->{name}.'\l';
 	}
 	$node .= '}';
-	$nodes{$table} = $node;
+	$nodes{$table->{name}} = $node;
         $g->add_node($node,shape=>'record');
     }
 
