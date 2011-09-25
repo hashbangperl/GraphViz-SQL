@@ -39,11 +39,12 @@ sub new {
 sub parse {
     my ($self, $sql) = @_;
     my $success = $self->{parser}->parse($sql);
+    $self->{sql} = $sql;
     return 0 unless $success;
     my $raw_data = $self->{parser}->structure;
     $self->{parsed_structure} = { tables => {}, table_aliases => { }, relations => [] };
     foreach my $table_name (@{$raw_data->{org_table_names}}) {
-	my $table = { name => $table_name, columns => [ ], aliases => [] };
+	my $table = { name => $table_name, columns => { }, aliases => [] };
 	if ($raw_data->{table_alias}{$table_name}) {
 	    foreach my $alias (@{$raw_data->{table_alias}{$table_name}}) {
 		push(@{$table->{aliases}}, $alias);
@@ -57,19 +58,31 @@ sub parse {
 	my ($column_name, $table, $schema) = reverse split (/\./, $column->{value});
 
 	$column->{name} = $column_name;
-	push (@{$self->{parsed_structure}{tables}{$table}{columns}}, $column);
+	$column->{where_criteria} = [];
+	$self->{parsed_structure}{tables}{$table}{columns}{$column_name} = $column;
     }
 
     foreach my $join ($raw_data->{join}) {
 	foreach my $join_col (@{$join->{keycols}}) {
 	    my ($column_name, $table, $schema) = reverse split (/\./, $join_col);
-	    push (@{$self->{parsed_structure}{tables}{$table}{columns}}, {name => $column_name} );
+	    $self->{parsed_structure}{tables}{$table}{columns}{$column_name} = {name => $column_name, where_criteria => []};
 	}
 	push(@{$self->{parsed_structure}{relations}}, {
 						       from => $join->{table_order}[0],
 						       to => $join->{table_order}[1],
 						       label => join(' ', $join->{type}, 'join',  $join->{clause}, $join->{keycols}[0], '=', $join->{keycols}[1])
 						      });
+    }
+
+    foreach my $condition ($raw_data->{where_clause}) {
+	my ($column_name, $table, $schema) = reverse split (/\./, $condition->{arg1}{value});
+	my $expression = $condition->{op} . ' ' .  $condition->{arg2}{value};
+	my $column = $self->{parsed_structure}{tables}{$table}{columns}{$column_name};
+	unless ($column) {
+	    $column = { name => $column_name, where_criteria => [] };
+	    $self->{parsed_structure}{tables}{$table}{columns}{$column_name} = $column;
+	}
+	push( @{$column->{where_criteria}}, $expression );
     }
 
     return $self->{parsed_structure};
@@ -94,12 +107,15 @@ sub visualise {
 
     my $g = GraphViz->new();
 
+    $g->add_node($self->{sql}, shape=>'box');
+
     foreach my $table (values %{$self->tables}) {
         my $node = '{'.$table->{name}." ( aliases : " . join (',', @{$table->{aliases}}) . " ) |";
-	foreach my $table_column ( @{$table->{columns}} ) {
+	foreach my $table_column ( values %{$table->{columns}} ) {
             $node .= $table_column->{name};
 	    $node .= ' ( alias '. $table_column->{alias} .')' if ($table_column->{alias});
-	      $node .='\l';
+	    $node .= ' ( where '. join (' ', @{$table_column->{where_criteria}}) .')' if ($table_column->{where_criteria}[0]);
+	    $node .='\l';
 	}
 	$node .= '}';
 	$nodes{$table->{name}} = $node;
